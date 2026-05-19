@@ -10,7 +10,7 @@ Clear-Host
 Write-Host ''
 Write-Host 'mcpbus' -ForegroundColor White -NoNewline
 
-# ── Fetch latest release ──────────────────────────────────────────────────────
+# Fetch latest release
 
 try {
     $headers = @{ 'User-Agent' = 'mcpbus-installer' }
@@ -26,7 +26,7 @@ try {
     exit 1
 }
 
-# ── Download ──────────────────────────────────────────────────────────────────
+# Download
 
 Write-Host 'Downloading...' -ForegroundColor DarkGray
 try {
@@ -39,7 +39,7 @@ try {
 Write-Host 'Download complete.' -ForegroundColor Green
 Write-Host ''
 
-# ── Detect installed Claude clients ───────────────────────────────────────────
+# Detect installed Claude clients
 
 Write-Host 'Detecting Claude clients...' -ForegroundColor DarkGray
 
@@ -60,7 +60,7 @@ if (-not $claudeDesktopFound -and -not $claudeCodeFound) {
     exit 0
 }
 
-# ── Register ──────────────────────────────────────────────────────────────────
+# Register
 
 Write-Host 'Registering...' -ForegroundColor DarkGray
 
@@ -68,11 +68,11 @@ $installArgs = '--install'
 if (-not $claudeDesktopFound) { $installArgs += ' --no-claude-desktop' }
 if (-not $claudeCodeFound)    { $installArgs += ' --no-claude-code'    }
 
-$psi                       = New-Object System.Diagnostics.ProcessStartInfo
-$psi.FileName              = $ExePath
-$psi.Arguments             = $installArgs
-$psi.UseShellExecute       = $false
-$psi.CreateNoWindow        = $true
+$psi                        = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName               = $ExePath
+$psi.Arguments              = $installArgs
+$psi.UseShellExecute        = $false
+$psi.CreateNoWindow         = $true
 $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError  = $true
 $p = [System.Diagnostics.Process]::Start($psi)
