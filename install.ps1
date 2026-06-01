@@ -18,6 +18,12 @@ try {
     $version = $release.tag_name -replace '^v', ''
     $asset   = $release.assets | Where-Object { $_.name -eq 'mcpbus.exe' } | Select-Object -First 1
     if (-not $asset) { throw 'mcpbus.exe not found in latest release.' }
+    # GitHub publishes a per-asset sha256 digest. Capture it so we can verify the
+    # downloaded binary before we ever execute it (integrity / tamper check).
+    $expectedSha = $null
+    if ($asset.PSObject.Properties.Name -contains 'digest' -and $asset.digest) {
+        $expectedSha = ($asset.digest -replace '^sha256:', '').ToLowerInvariant()
+    }
     Write-Host " $version" -ForegroundColor DarkGray
     Write-Host ''
 } catch {
@@ -82,6 +88,27 @@ try {
 }
 Write-Host 'Download complete.' -ForegroundColor Green
 Write-Host ''
+
+# Verify integrity against GitHub's published sha256 digest BEFORE executing the binary.
+# If the digest is missing (older release) we warn but proceed; if present and mismatched
+# we abort and delete the file — a mismatch means the download was tampered with.
+if ($expectedSha) {
+    Write-Host 'Verifying...' -ForegroundColor DarkGray
+    $actualSha = (Get-FileHash -Path $ExePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualSha -ne $expectedSha) {
+        Remove-Item $ExePath -Force -ErrorAction SilentlyContinue
+        Write-Host "FAIL  Integrity check failed - downloaded file does not match the published hash." -ForegroundColor Red
+        Write-Host "      expected: $expectedSha" -ForegroundColor DarkGray
+        Write-Host "      actual:   $actualSha"   -ForegroundColor DarkGray
+        Write-Host '      The download may have been tampered with. Aborting.' -ForegroundColor DarkGray
+        exit 1
+    }
+    Write-Host '  sha256 verified' -ForegroundColor Green
+    Write-Host ''
+} else {
+    Write-Host 'WARN  No published hash to verify against; skipping integrity check.' -ForegroundColor Yellow
+    Write-Host ''
+}
 
 # Detect installed Claude clients
 
