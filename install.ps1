@@ -28,7 +28,7 @@ try {
     Write-Host ''
 } catch {
     Write-Host ''
-    Write-Host "FAIL  Could not fetch release: $_" -ForegroundColor Red
+    Write-Host "Error: could not fetch release: $_" -ForegroundColor Red
     exit 1
 }
 
@@ -83,7 +83,7 @@ try {
     Write-Host ''
 } catch {
     Write-Host ''
-    Write-Host "FAIL  Download failed: $_" -ForegroundColor Red
+    Write-Host "Error: download failed: $_" -ForegroundColor Red
     exit 1
 }
 Write-Host 'Download complete.' -ForegroundColor Green
@@ -97,16 +97,16 @@ if ($expectedSha) {
     $actualSha = (Get-FileHash -Path $ExePath -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actualSha -ne $expectedSha) {
         Remove-Item $ExePath -Force -ErrorAction SilentlyContinue
-        Write-Host "FAIL  Integrity check failed - downloaded file does not match the published hash." -ForegroundColor Red
-        Write-Host "      expected: $expectedSha" -ForegroundColor DarkGray
-        Write-Host "      actual:   $actualSha"   -ForegroundColor DarkGray
-        Write-Host '      The download may have been tampered with. Aborting.' -ForegroundColor DarkGray
+        Write-Host "Error: integrity check failed - downloaded file does not match the published hash." -ForegroundColor Red
+        Write-Host "expected: $expectedSha" -ForegroundColor DarkGray
+        Write-Host "actual:   $actualSha"   -ForegroundColor DarkGray
+        Write-Host 'The download may have been tampered with. Aborting.' -ForegroundColor DarkGray
         exit 1
     }
-    Write-Host '  sha256 verified' -ForegroundColor Green
+    Write-Host 'sha256 verified' -ForegroundColor Green
     Write-Host ''
 } else {
-    Write-Host 'WARN  No published hash to verify against; skipping integrity check.' -ForegroundColor Yellow
+    Write-Host 'Warning: no published hash to verify against; skipping integrity check.' -ForegroundColor Yellow
     Write-Host ''
 }
 
@@ -118,15 +118,15 @@ $claudeDesktopFound = (Test-Path (Join-Path $env:LOCALAPPDATA 'AnthropicClaude')
                       (Test-Path (Join-Path $env:APPDATA 'Claude'))
 $claudeCodeFound    = $null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)
 
-if ($claudeDesktopFound) { Write-Host '  Claude Desktop  found' -ForegroundColor Green }
-else                     { Write-Host '  Claude Desktop  not installed' -ForegroundColor DarkGray }
-if ($claudeCodeFound)    { Write-Host '  Claude Code     found' -ForegroundColor Green }
-else                     { Write-Host '  Claude Code     not installed' -ForegroundColor DarkGray }
+if ($claudeDesktopFound) { Write-Host 'Claude Desktop: found' -ForegroundColor Green }
+else                     { Write-Host 'Claude Desktop: not installed' -ForegroundColor DarkGray }
+if ($claudeCodeFound)    { Write-Host 'Claude Code: found' -ForegroundColor Green }
+else                     { Write-Host 'Claude Code: not installed' -ForegroundColor DarkGray }
 Write-Host ''
 
 if (-not $claudeDesktopFound -and -not $claudeCodeFound) {
-    Write-Host 'WARN  No Claude client found.' -ForegroundColor Yellow
-    Write-Host '      Install Claude Desktop or Claude Code first, then re-run.' -ForegroundColor DarkGray
+    Write-Host 'Warning: no Claude client found.' -ForegroundColor Yellow
+    Write-Host 'Install Claude Desktop or Claude Code first, then re-run.' -ForegroundColor DarkGray
     Write-Host ''
     exit 0
 }
@@ -154,13 +154,13 @@ $null = $stdoutTask.Result
 $null = $stderrTask.Result
 
 if ($p.ExitCode -ne 0) {
-    Write-Host "FAIL  Registration failed (exit $($p.ExitCode))." -ForegroundColor Red
-    Write-Host '      Run mcpbus --setup manually for details.' -ForegroundColor DarkGray
+    Write-Host "Error: registration failed (exit $($p.ExitCode))." -ForegroundColor Red
+    Write-Host 'Run mcpbus --setup manually for details.' -ForegroundColor DarkGray
     exit 1
 }
 
-if ($claudeDesktopFound) { Write-Host '  Claude Desktop  done' -ForegroundColor Green }
-if ($claudeCodeFound)    { Write-Host '  Claude Code     done' -ForegroundColor Green }
+if ($claudeDesktopFound) { Write-Host 'Claude Desktop: done' -ForegroundColor Green }
+if ($claudeCodeFound)    { Write-Host 'Claude Code: done' -ForegroundColor Green }
 
 # Activate (device-code). Runs interactively: shows the code, opens the browser, polls.
 # Skips itself if a valid license already exists (mcpbus --activate handles that). A non-zero
