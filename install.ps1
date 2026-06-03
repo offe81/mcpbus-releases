@@ -18,17 +18,11 @@ try {
     $version = $release.tag_name -replace '^v', ''
     $asset   = $release.assets | Where-Object { $_.name -eq 'mcpbus.exe' } | Select-Object -First 1
     if (-not $asset) { throw 'mcpbus.exe not found in latest release.' }
-    # GitHub publishes a per-asset sha256 digest. Capture it so we can verify the
-    # downloaded binary before we ever execute it (integrity / tamper check).
-    $expectedSha = $null
-    if ($asset.PSObject.Properties.Name -contains 'digest' -and $asset.digest) {
-        $expectedSha = ($asset.digest -replace '^sha256:', '').ToLowerInvariant()
-    }
     Write-Host " $version" -ForegroundColor DarkGray
     Write-Host ''
 } catch {
     Write-Host ''
-    Write-Host "Error: could not fetch release: $_" -ForegroundColor Red
+    Write-Host "FAIL  Could not fetch release: $_" -ForegroundColor Red
     exit 1
 }
 
@@ -37,78 +31,13 @@ try {
 Write-Host 'Downloading...' -ForegroundColor DarkGray
 try {
     $null = New-Item -ItemType Directory -Force -Path $InstallDir
-    Add-Type -AssemblyName System.Net.Http
-
-    # Stream the download ourselves so we can draw a real percent bar. PowerShell's built-in
-    # Invoke-WebRequest progress is also why it felt slow - its rendering throttles the
-    # transfer. This loop is both quieter and faster.
-    $client = New-Object System.Net.Http.HttpClient
-    $client.DefaultRequestHeaders.Add('User-Agent', 'mcpbus-installer')
-    $resp = $client.GetAsync($asset.browser_download_url,
-        [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result
-    $resp.EnsureSuccessStatusCode() | Out-Null
-
-    $total     = $resp.Content.Headers.ContentLength
-    $stream    = $resp.Content.ReadAsStreamAsync().Result
-    $out       = [System.IO.File]::Create($ExePath)
-    $buffer    = New-Object byte[] 81920
-    $totalRead = 0
-    $lastPct   = -1
-    # Build the bar glyphs at runtime from code points. The script is fetched via irm|iex and
-    # decoded as Latin1 (the host serves it as octet-stream), so literal block characters in the
-    # source would arrive mangled. U+2588/U+2591 also exist in the legacy OEM code page, so they
-    # render in both classic conhost and modern UTF-8 terminals.
-    $cFull     = [string][char]0x2588
-    $cLight    = [string][char]0x2591
-    try {
-        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
-            $out.Write($buffer, 0, $read)
-            $totalRead += $read
-            if ($total) {
-                $pct = [int](($totalRead / $total) * 100)
-                if ($pct -ne $lastPct) {
-                    $lastPct = $pct
-                    $filled  = [int]($pct / 5)
-                    $bar     = ($cFull * $filled) + ($cLight * (20 - $filled))
-                    $mb      = '{0:N1} / {1:N1} MB' -f ($totalRead / 1MB), ($total / 1MB)
-                    Write-Host ("`r  [{0}] {1,3}%   {2}" -f $bar, $pct, $mb) -NoNewline -ForegroundColor DarkGray
-                }
-            } else {
-                Write-Host ("`r  {0:N1} MB downloaded" -f ($totalRead / 1MB)) -NoNewline -ForegroundColor DarkGray
-            }
-        }
-    } finally {
-        $out.Dispose(); $stream.Dispose(); $resp.Dispose(); $client.Dispose()
-    }
-    Write-Host ''
+    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $ExePath -UseBasicParsing -Headers $headers
 } catch {
-    Write-Host ''
-    Write-Host "Error: download failed: $_" -ForegroundColor Red
+    Write-Host "FAIL  Download failed: $_" -ForegroundColor Red
     exit 1
 }
 Write-Host 'Download complete.' -ForegroundColor Green
 Write-Host ''
-
-# Verify integrity against GitHub's published sha256 digest BEFORE executing the binary.
-# If the digest is missing (older release) we warn but proceed; if present and mismatched
-# we abort and delete the file — a mismatch means the download was tampered with.
-if ($expectedSha) {
-    Write-Host 'Verifying...' -ForegroundColor DarkGray
-    $actualSha = (Get-FileHash -Path $ExePath -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actualSha -ne $expectedSha) {
-        Remove-Item $ExePath -Force -ErrorAction SilentlyContinue
-        Write-Host "Error: integrity check failed - downloaded file does not match the published hash." -ForegroundColor Red
-        Write-Host "expected: $expectedSha" -ForegroundColor DarkGray
-        Write-Host "actual:   $actualSha"   -ForegroundColor DarkGray
-        Write-Host 'The download may have been tampered with. Aborting.' -ForegroundColor DarkGray
-        exit 1
-    }
-    Write-Host 'sha256 verified' -ForegroundColor Green
-    Write-Host ''
-} else {
-    Write-Host 'Warning: no published hash to verify against; skipping integrity check.' -ForegroundColor Yellow
-    Write-Host ''
-}
 
 # Detect installed Claude clients
 
@@ -118,15 +47,15 @@ $claudeDesktopFound = (Test-Path (Join-Path $env:LOCALAPPDATA 'AnthropicClaude')
                       (Test-Path (Join-Path $env:APPDATA 'Claude'))
 $claudeCodeFound    = $null -ne (Get-Command 'claude' -ErrorAction SilentlyContinue)
 
-if ($claudeDesktopFound) { Write-Host 'Claude Desktop: found' -ForegroundColor Green }
-else                     { Write-Host 'Claude Desktop: not installed' -ForegroundColor DarkGray }
-if ($claudeCodeFound)    { Write-Host 'Claude Code: found' -ForegroundColor Green }
-else                     { Write-Host 'Claude Code: not installed' -ForegroundColor DarkGray }
+if ($claudeDesktopFound) { Write-Host '  Claude Desktop  found' -ForegroundColor Green }
+else                     { Write-Host '  Claude Desktop  not installed' -ForegroundColor DarkGray }
+if ($claudeCodeFound)    { Write-Host '  Claude Code     found' -ForegroundColor Green }
+else                     { Write-Host '  Claude Code     not installed' -ForegroundColor DarkGray }
 Write-Host ''
 
 if (-not $claudeDesktopFound -and -not $claudeCodeFound) {
-    Write-Host 'Warning: no Claude client found.' -ForegroundColor Yellow
-    Write-Host 'Install Claude Desktop or Claude Code first, then re-run.' -ForegroundColor DarkGray
+    Write-Host 'WARN  No Claude client found.' -ForegroundColor Yellow
+    Write-Host '      Install Claude Desktop or Claude Code first, then re-run.' -ForegroundColor DarkGray
     Write-Host ''
     exit 0
 }
@@ -154,24 +83,21 @@ $null = $stdoutTask.Result
 $null = $stderrTask.Result
 
 if ($p.ExitCode -ne 0) {
-    Write-Host "Error: registration failed (exit $($p.ExitCode))." -ForegroundColor Red
-    Write-Host 'Run mcpbus --setup manually for details.' -ForegroundColor DarkGray
+    Write-Host "FAIL  Registration failed (exit $($p.ExitCode))." -ForegroundColor Red
+    Write-Host '      Run mcpbus --setup manually for details.' -ForegroundColor DarkGray
     exit 1
 }
 
-if ($claudeDesktopFound) { Write-Host 'Claude Desktop: done' -ForegroundColor Green }
-if ($claudeCodeFound)    { Write-Host 'Claude Code: done' -ForegroundColor Green }
+if ($claudeDesktopFound) { Write-Host '  Claude Desktop  done' -ForegroundColor Green }
+if ($claudeCodeFound)    { Write-Host '  Claude Code     done' -ForegroundColor Green }
 
 # Activate (device-code). Runs interactively: shows the code, opens the browser, polls.
 # Skips itself if a valid license already exists (mcpbus --activate handles that). A non-zero
-# exit (user abandoned) does not stop the script - setup already succeeded and the wall in
+# exit (user abandoned) does not stop the script — setup already succeeded and the wall in
 # Claude is the backstop.
 Write-Host ''
 Write-Host 'Activating...' -ForegroundColor DarkGray
-# mcpbus.exe is a GUI-subsystem binary, so PowerShell's call operator (&) does NOT wait for it -
-# the script would race ahead to the config prompt mid-activation. -NoNewWindow keeps the
-# device-code flow inline in this console; -Wait blocks until the exe exits.
-Start-Process -FilePath $ExePath -ArgumentList '--activate' -NoNewWindow -Wait
+& $ExePath --activate
 
 # Offer the config UI. Same prompt as the double-click menu; Enter = yes.
 Write-Host ''
