@@ -71,10 +71,10 @@ try {
                     $filled  = [int]($pct / 5)
                     $bar     = ($cFull * $filled) + ($cLight * (20 - $filled))
                     $mb      = '{0:N1} / {1:N1} MB' -f ($totalRead / 1MB), ($total / 1MB)
-                    Write-Host ("`r  [{0}] {1,3}%   {2}" -f $bar, $pct, $mb) -NoNewline -ForegroundColor DarkGray
+                    Write-Host ("`r[{0}] {1,3}%   {2}" -f $bar, $pct, $mb) -NoNewline -ForegroundColor DarkGray
                 }
             } else {
-                Write-Host ("`r  {0:N1} MB downloaded" -f ($totalRead / 1MB)) -NoNewline -ForegroundColor DarkGray
+                Write-Host ("`r{0:N1} MB downloaded" -f ($totalRead / 1MB)) -NoNewline -ForegroundColor DarkGray
             }
         }
     } finally {
