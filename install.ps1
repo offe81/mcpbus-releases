@@ -8,7 +8,7 @@ $ExePath    = Join-Path $InstallDir 'mcpbus.exe'
 
 Clear-Host
 Write-Host ''
-Write-Host 'Mcpbus' -ForegroundColor White -NoNewline
+Write-Host 'mcpbus' -ForegroundColor White -NoNewline
 
 # Fetch latest release
 
