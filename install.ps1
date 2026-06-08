@@ -32,6 +32,19 @@ try {
     exit 1
 }
 
+# Stop any running instance before we overwrite the exe. On upgrade, a running
+# mcpbus.exe (Claude's MCP server, or an open config UI) holds a lock on the file
+# and File::Create below would fail with "used by another process". Closing it here
+# makes upgrades seamless; the user is told to /mcp reconnect at the end.
+
+$running = @(Get-Process mcpbus -ErrorAction SilentlyContinue)
+if ($running.Count -gt 0) {
+    Write-Host "Closing $($running.Count) running mcpbus instance(s)..." -ForegroundColor DarkGray
+    $running | Stop-Process -Force
+    Start-Sleep -Milliseconds 300
+    Write-Host ''
+}
+
 # Download
 
 Write-Host 'Downloading...' -ForegroundColor DarkGray
