@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$ReleaseUrl = 'https://api.github.com/repos/offe81/mcpbus-releases/releases/latest'
+$ReleaseUrl = 'https://api.github.com/repos/offeconsulting/mcpbus-releases/releases/latest'
 $InstallDir = Join-Path (Join-Path $env:LOCALAPPDATA 'mcpbus') 'bin'
 $ExePath    = Join-Path $InstallDir 'mcpbus.exe'
 
